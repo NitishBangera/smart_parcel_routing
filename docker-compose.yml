@@ -1,0 +1,23 @@
+services:
+  nginx:
+    build:
+      context: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - order-service
+      - truck-service
+
+  order-service:
+    build:
+      context: ./ms-orders
+      dockerfile: Dockerfile
+    expose:
+      - "8081"
+  
+  truck-service:
+    build:
+      context: ./ms-trucks
+      dockerfile: Dockerfile
+    expose:
+      - "8082"
