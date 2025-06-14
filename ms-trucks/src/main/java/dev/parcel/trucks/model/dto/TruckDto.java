@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 @Getter
-@RequiredArgsConstructor
 public class TruckDto {
     private final long id;
 

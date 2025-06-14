@@ -2,13 +2,10 @@ package dev.parcel.trucks.service;
 
 import dev.parcel.trucks.model.DeliveryResultPayload;
 import dev.parcel.trucks.model.DeliveryStatus;
-import dev.parcel.trucks.model.dao.DeliveryInformation;
 import dev.parcel.trucks.model.dao.Truck;
 import dev.parcel.trucks.model.dto.OrderDto;
 import dev.parcel.trucks.model.dto.TruckDto;
-import dev.parcel.trucks.repository.DeliveryRepository;
 import dev.parcel.trucks.repository.TruckRepository;
-import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -22,7 +19,7 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class TruckService {
     private static final String ORDER_ENDPOINT = "http://order-service:8081/orders/internal";
-    private final DeliveryRepository deliveryRepository;
+    private final DeliveryService deliveryService;
     private final TruckRepository truckRepository;
     private final RestTemplate restTemplate;
 
@@ -43,19 +40,7 @@ public class TruckService {
     }
 
     public void processDeliveryResults(Long truckId, DeliveryResultPayload payload) {
-        for (var update : payload.getDeliveries()) {
-            var info = deliveryRepository.findByIdAndTruckId(update.getDeliveryId(), truckId).orElseThrow();
-            info.setStatus(update.getStatus());
-            deliveryRepository.save(info);
-
-            if (update.getStatus() == DeliveryStatus.COULD_NOT_DELIVER) {
-                // Trigger redelivery
-                CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                        ORDER_ENDPOINT + "/" + info.getOrderId() + "/redelivery-request",
-                        null,
-                        Void.class));
-            }
-        }
+        deliveryService.processDeliveryResults(truckId, payload);
     }
 
     public void tryAssignOrder(OrderDto order) {
@@ -70,26 +55,15 @@ public class TruckService {
                 .min(Comparator.comparing(t -> t.getCurrentWeight() + t.getCurrentVolume())).orElse(null);
 
         if (truck != null) {
-            var orderId = order.getId();
-            var orderVolume = order.getVolume();
-            var orderWeight = order.getWeight();
-            var deliveryInformation = new DeliveryInformation();
-            deliveryInformation.setOrderId(orderId);
-            deliveryInformation.setDeliveryDatetime(OffsetDateTime.now().plusDays(1));
-            deliveryInformation.setPriority(order.getPriority());
-            deliveryInformation.setStatus(DeliveryStatus.PENDING);
-            deliveryInformation.setTruckId(truck.getId());
-            deliveryInformation.setVolume(orderVolume);
-            deliveryInformation.setWeight(orderWeight);
-            deliveryRepository.save(deliveryInformation);
+            deliveryService.saveOrderForTruck(truck.getId(), order);
 
             // Notify order service the order is assigned
             CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                    ORDER_ENDPOINT + "/" + orderId + "/mark-assigned",
+                    ORDER_ENDPOINT + "/" + order.getId() + "/mark-assigned",
                     null, Void.class));
 
-            truck.setCurrentVolume(truck.getCurrentVolume() + orderVolume);
-            truck.setCurrentWeight(truck.getCurrentWeight() + orderWeight);
+            truck.setCurrentVolume(truck.getCurrentVolume() + order.getVolume());
+            truck.setCurrentWeight(truck.getCurrentWeight() + order.getWeight());
             truckRepository.save(truck);
         }
     }

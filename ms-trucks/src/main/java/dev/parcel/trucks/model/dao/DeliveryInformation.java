@@ -8,8 +8,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import lombok.AllArgsConstructor;
@@ -29,6 +27,10 @@ public class DeliveryInformation {
     private long id;
 
     private long orderId;
+
+    private String address;
+
+    private String pinCode;
 
     private double weight;
 
