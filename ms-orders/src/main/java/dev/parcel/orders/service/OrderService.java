@@ -13,7 +13,7 @@ import org.springframework.web.client.RestTemplate;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-    private static final String TRUCKS_ENDPOINT = "http://truck-service:8082/trucks";
+    private static final String TRUCKS_ENDPOINT = "http://truck-service:8082/trucks/internal";
 
     private final OrderRepository orderRepository;
 

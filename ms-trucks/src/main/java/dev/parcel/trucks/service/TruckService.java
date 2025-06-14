@@ -21,7 +21,7 @@ import org.springframework.web.client.RestTemplate;
 @Service
 @RequiredArgsConstructor
 public class TruckService {
-    private static final String ORDER_ENDPOINT = "http://order-service:8081/orders";
+    private static final String ORDER_ENDPOINT = "http://order-service:8081/orders/internal";
     private final DeliveryRepository deliveryRepository;
     private final TruckRepository truckRepository;
     private final RestTemplate restTemplate;

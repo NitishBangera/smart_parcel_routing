@@ -33,7 +33,7 @@ public class TruckController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/assign-order")
+    @PostMapping("/internal/assign-order")
     public ResponseEntity<Void> handleOrderAssignment(@RequestBody OrderDto order) {
         truckService.tryAssignOrder(order);
         return ResponseEntity.ok().build();

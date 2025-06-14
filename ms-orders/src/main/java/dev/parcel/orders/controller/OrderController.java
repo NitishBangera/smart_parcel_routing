@@ -26,19 +26,19 @@ public class OrderController {
         return ResponseEntity.ok(created);
     }
 
-    @PostMapping("/{orderId}/redelivery-request")
+    @PostMapping("/internal/{orderId}/redelivery-request")
     public ResponseEntity<Void> requestRedelivery(@PathVariable Long orderId) {
         orderService.markAsUnassigned(orderId);
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/unassigned")
+    @GetMapping("/internal/unassigned")
     public ResponseEntity<List<OrderDto>> getUnassignedOrdersByPostalZone(@RequestParam String postalZone) {
         var orders = orderService.getUnassignedOrdersByPostalZone(postalZone);
         return ResponseEntity.ok(OrderDto.convert(orders));
     }
 
-    @PostMapping("/{orderId}/mark-assigned")
+    @PostMapping("/internal/{orderId}/mark-assigned")
     public ResponseEntity<Void> markAssigned(@PathVariable Long orderId) {
         orderService.markAsAssigned(orderId);
         return ResponseEntity.ok().build();
