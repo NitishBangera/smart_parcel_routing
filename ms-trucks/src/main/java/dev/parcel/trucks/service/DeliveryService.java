@@ -11,19 +11,16 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DeliveryService {
-    private static final String ORDER_ENDPOINT = "http://order-service:8081/orders/internal";
+    private final OrderService orderService;
     private final DeliveryRepository deliveryRepository;
-    private final RestTemplate restTemplate;
 
     public void saveOrderForTruck(long truckId, OrderDto order) {
         var orderId = order.getId();
@@ -51,10 +48,7 @@ public class DeliveryService {
                 var orderId = info.getOrderId();
                 log.info("Order {} could not be delivered. Processing redelivery.", orderId);
                 // Trigger redelivery
-                CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                        ORDER_ENDPOINT + "/" + orderId + "/redelivery-request",
-                        null,
-                        Void.class));
+                orderService.redeliveryRequest(orderId);
             }
         }
     }

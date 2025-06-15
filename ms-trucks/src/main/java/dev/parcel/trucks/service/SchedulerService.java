@@ -10,7 +10,8 @@ public class SchedulerService {
     private final TruckService truckService;
 
     // @Scheduled(cron = "0 */15 0,6-23 * * *", zone = "Asia/Kolkata")
-    @Scheduled(cron = "0 */5 6-23 * * *", zone = "Asia/Kolkata")
+    //@Scheduled(cron = "0 */5 6-23 * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 0 6-23,0 * * *", zone = "Asia/Kolkata")
     public void scheduledAssignUnassigned() {
         truckService.scheduledAssignUnassigned();
     }

@@ -5,23 +5,19 @@ import dev.parcel.trucks.model.dao.Truck;
 import dev.parcel.trucks.model.dto.OrderDto;
 import dev.parcel.trucks.model.dto.TruckDto;
 import dev.parcel.trucks.repository.TruckRepository;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TruckService {
-    private static final String ORDER_ENDPOINT = "http://order-service:8081/orders/internal";
     private final DeliveryService deliveryService;
+    private final OrderService orderService;
     private final TruckRepository truckRepository;
-    private final RestTemplate restTemplate;
 
     public TruckDto addTruck(Truck truck) {
         var truckDto = new TruckDto(truckRepository.save(truck));
@@ -44,20 +40,20 @@ public class TruckService {
                 .filter(t -> t.getCurrentVolume() + order.getVolume() <= t.getMaxVolume())
                 .min(Comparator.comparing(t -> t.getCurrentWeight() + t.getCurrentVolume())).orElse(null);
 
+        var orderId = order.getId();
         if (truck != null) {
             var truckId = truck.getId();
-            var orderId = order.getId();
             deliveryService.saveOrderForTruck(truckId, order);
 
             log.info("Order {} assigned to truck {}", orderId, truckId);
             // Notify order service the order is assigned
-            CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                    ORDER_ENDPOINT + "/" + orderId + "/mark-assigned",
-                    null, Void.class));
+            orderService.markAssigned(orderId);
 
             truck.setCurrentVolume(truck.getCurrentVolume() + order.getVolume());
             truck.setCurrentWeight(truck.getCurrentWeight() + order.getWeight());
             truckRepository.save(truck);
+        } else {
+            log.info("No trucks available. Order {} could not be assigned.", orderId);
         }
     }
 
@@ -77,13 +73,10 @@ public class TruckService {
     }
 
     public void assignUnassignedOrders(String postalZone) {
-        var response = restTemplate.getForEntity(
-                ORDER_ENDPOINT + "/unassigned/" + postalZone,
-                OrderDto[].class);
+        var orders = orderService.markUnassigned(postalZone);
 
-        if (response.getBody() == null) return;
+        if (orders == null) return;
 
-        var orders = Arrays.asList(response.getBody());
         log.info("{} orders unassigned. Processing.", orders.size());
         orders.sort(Comparator.comparing(OrderDto::getPriority).reversed());
         orders.forEach(this::tryAssignOrder);
