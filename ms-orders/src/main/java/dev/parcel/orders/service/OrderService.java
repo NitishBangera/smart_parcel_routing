@@ -5,21 +5,16 @@ import dev.parcel.orders.model.dao.Order;
 import dev.parcel.orders.model.dto.OrderDto;
 import dev.parcel.orders.repository.OrderRepository;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-    private static final String TRUCKS_ENDPOINT = "http://truck-service:8082/trucks/internal";
-
     private final OrderRepository orderRepository;
-
-    private final RestTemplate restTemplate;
+    private final TruckService truckService;
 
     public OrderDto createOrder(Order order) {
         order.setAssigned(false);
@@ -27,8 +22,7 @@ public class OrderService {
 
         if (order.getPriority() == Priority.EXPRESS) {
             // Notify truck service for assignment
-            CompletableFuture.runAsync(() -> restTemplate.postForEntity(TRUCKS_ENDPOINT + "/assign-order",
-                    orderDto, Void.class));
+            truckService.assignOrder(orderDto);
         }
         log.info("Order {} created", orderDto.getId());
         return orderDto;
