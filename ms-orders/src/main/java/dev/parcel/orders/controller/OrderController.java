@@ -32,10 +32,9 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/internal/unassigned")
-    public ResponseEntity<List<OrderDto>> getUnassignedOrdersByPostalZone(@RequestParam String postalZone) {
-        var orders = orderService.getUnassignedOrdersByPostalZone(postalZone);
-        return ResponseEntity.ok(OrderDto.convert(orders));
+    @GetMapping("/internal/unassigned/{postalZone}")
+    public ResponseEntity<List<OrderDto>> getUnassignedOrdersByPostalZone(@PathVariable String postalZone) {
+        return ResponseEntity.ok(orderService.getUnassignedOrdersByPostalZone(postalZone));
     }
 
     @PostMapping("/internal/{orderId}/mark-assigned")

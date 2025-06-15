@@ -26,8 +26,9 @@ public class DeliveryService {
     private final RestTemplate restTemplate;
 
     public void saveOrderForTruck(long truckId, OrderDto order) {
+        var orderId = order.getId();
         var deliveryInformation = new DeliveryInformation();
-        deliveryInformation.setOrderId(order.getId());
+        deliveryInformation.setOrderId(orderId);
         deliveryInformation.setDeliveryDatetime(OffsetDateTime.now().plusDays(1));
         deliveryInformation.setPinCode(order.getPinCode());
         deliveryInformation.setAddress(order.getAddress());
@@ -36,7 +37,8 @@ public class DeliveryService {
         deliveryInformation.setTruckId(truckId);
         deliveryInformation.setVolume(order.getVolume());
         deliveryInformation.setWeight(order.getWeight());
-        deliveryRepository.save(deliveryInformation);
+        var delivery = deliveryRepository.save(deliveryInformation);
+        log.info("Delivery with id {} created for order {} assigned to truck {}", delivery.getId(), orderId, truckId);
     }
 
     public void processDeliveryResults(Long truckId, DeliveryResultPayload payload) {
@@ -46,9 +48,11 @@ public class DeliveryService {
             deliveryRepository.save(info);
 
             if (update.getStatus() == DeliveryStatus.COULD_NOT_DELIVER) {
+                var orderId = info.getOrderId();
+                log.info("Order {} could not be delivered. Processing redelivery.", orderId);
                 // Trigger redelivery
                 CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                        ORDER_ENDPOINT + "/" + info.getOrderId() + "/redelivery-request",
+                        ORDER_ENDPOINT + "/" + orderId + "/redelivery-request",
                         null,
                         Void.class));
             }

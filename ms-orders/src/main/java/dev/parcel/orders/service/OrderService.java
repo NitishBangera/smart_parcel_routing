@@ -7,9 +7,11 @@ import dev.parcel.orders.repository.OrderRepository;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -28,7 +30,7 @@ public class OrderService {
             CompletableFuture.runAsync(() -> restTemplate.postForEntity(TRUCKS_ENDPOINT + "/assign-order",
                     orderDto, Void.class));
         }
-
+        log.info("Order {} created", orderDto.getId());
         return orderDto;
     }
 
@@ -36,16 +38,20 @@ public class OrderService {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setAssigned(false);
         orderRepository.save(order);
+        log.info("Order id {} marked unassigned", orderId);
     }
 
-    public List<Order> getUnassignedOrdersByPostalZone(String postalZone) {
-        return orderRepository.findByAssignedFalseAndPinCodeStartingWith(postalZone);
+    public List<OrderDto> getUnassignedOrdersByPostalZone(String postalZone) {
+        var orders = orderRepository.findByAssignedFalseAndPinCodeStartingWith(postalZone);
+        log.info("{} orders unassigned", orders.size());
+        return OrderDto.convert(orders);
     }
 
     public void markAsAssigned(long orderId) {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setAssigned(true);
         orderRepository.save(order);
+        log.info("Order {} assigned to truck", orderId);
     }
 
     public List<OrderDto> getAllOrders() {

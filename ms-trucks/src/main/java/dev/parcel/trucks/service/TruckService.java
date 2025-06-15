@@ -1,7 +1,6 @@
 package dev.parcel.trucks.service;
 
 import dev.parcel.trucks.model.DeliveryResultPayload;
-import dev.parcel.trucks.model.DeliveryStatus;
 import dev.parcel.trucks.model.dao.Truck;
 import dev.parcel.trucks.model.dto.OrderDto;
 import dev.parcel.trucks.model.dto.TruckDto;
@@ -11,10 +10,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TruckService {
@@ -23,20 +23,10 @@ public class TruckService {
     private final TruckRepository truckRepository;
     private final RestTemplate restTemplate;
 
-    @Scheduled(fixedRate = 15 * 60 * 1000)
-    public void scheduledAssignUnassigned() {
-        var zones = truckRepository.findAll()
-                .stream()
-                .map(Truck::getPostalZone)
-                .distinct()
-                .toList();
-        for (String zone : zones) {
-            assignUnassignedOrders(zone);
-        }
-    }
-
     public TruckDto addTruck(Truck truck) {
-        return new TruckDto(truckRepository.save(truck));
+        var truckDto = new TruckDto(truckRepository.save(truck));
+        log.info("Truck {} added", truckDto.getId());
+        return truckDto;
     }
 
     public void processDeliveryResults(Long truckId, DeliveryResultPayload payload) {
@@ -55,16 +45,34 @@ public class TruckService {
                 .min(Comparator.comparing(t -> t.getCurrentWeight() + t.getCurrentVolume())).orElse(null);
 
         if (truck != null) {
-            deliveryService.saveOrderForTruck(truck.getId(), order);
+            var truckId = truck.getId();
+            var orderId = order.getId();
+            deliveryService.saveOrderForTruck(truckId, order);
 
+            log.info("Order {} assigned to truck {}", orderId, truckId);
             // Notify order service the order is assigned
             CompletableFuture.runAsync(() -> restTemplate.postForEntity(
-                    ORDER_ENDPOINT + "/" + order.getId() + "/mark-assigned",
+                    ORDER_ENDPOINT + "/" + orderId + "/mark-assigned",
                     null, Void.class));
 
             truck.setCurrentVolume(truck.getCurrentVolume() + order.getVolume());
             truck.setCurrentWeight(truck.getCurrentWeight() + order.getWeight());
             truckRepository.save(truck);
+        }
+    }
+
+    public List<TruckDto> getAllTrucks() {
+        return TruckDto.convert(truckRepository.findAll());
+    }
+
+    public void scheduledAssignUnassigned() {
+        var zones = truckRepository.findAll()
+                .stream()
+                .map(Truck::getPostalZone)
+                .distinct()
+                .toList();
+        for (String zone : zones) {
+            assignUnassignedOrders(zone);
         }
     }
 
@@ -76,11 +84,8 @@ public class TruckService {
         if (response.getBody() == null) return;
 
         var orders = Arrays.asList(response.getBody());
+        log.info("{} orders unassigned. Processing.", orders.size());
         orders.sort(Comparator.comparing(OrderDto::getPriority).reversed());
         orders.forEach(this::tryAssignOrder);
-    }
-
-    public List<TruckDto> getAllTrucks() {
-        return TruckDto.convert(truckRepository.findAll());
     }
 }
